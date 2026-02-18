@@ -162,9 +162,15 @@ if (($_GET['action'] ?? '') === 'edit') {
     }
 }
 
-if (!$isEditing && ($_POST['action'] ?? '') === 'update') {
-    $isEditing = true;
-    $editingId = (int) ($_POST['id'] ?? 0);
+$pendingEdit = null;
+if ($errors && ($_POST['action'] ?? '') === 'update') {
+    $pendingEdit = [
+        'id' => (string) ($_POST['id'] ?? ''),
+        'name' => (string) ($_POST['name'] ?? ''),
+        'category' => (string) ($_POST['category'] ?? ''),
+        'quantity' => (string) ($_POST['quantity'] ?? ''),
+        'price' => (string) ($_POST['price'] ?? ''),
+    ];
 }
 
 $items = $pdo->query(
@@ -177,19 +183,21 @@ foreach ($items as $item) {
     $totalQuantity += (int) ($item['quantity'] ?? 0);
 }
 
-$formName = $editItem['name'] ?? ($_POST['name'] ?? '');
-$formCategory = $editItem['category'] ?? ($_POST['category'] ?? '');
-$formQuantity = $editItem['quantity'] ?? ($_POST['quantity'] ?? '');
-$formPrice = $editItem['price'] ?? ($_POST['price'] ?? '');
+$formSource = $editItem ?? ((($_POST['action'] ?? '') === 'create') ? $_POST : []);
+$formName = $formSource['name'] ?? '';
+$formCategory = $formSource['category'] ?? '';
+$formQuantity = $formSource['quantity'] ?? '';
+$formPrice = $formSource['price'] ?? '';
 ?>
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Inventory CRUD</title>
-  <link rel="stylesheet" href="assets/styles.css">
-</head>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Inventory CRUD</title>
+    <link rel="stylesheet" href="assets/styles.css">
+    <script src="assets/app.js" defer></script>
+  </head>
 <body>
   <main>
     <header class="page-header">
@@ -311,11 +319,19 @@ $formPrice = $editItem['price'] ?? ($_POST['price'] ?? '');
                 <td><?php echo date('M d, Y', strtotime($item['created_at'])); ?></td>
                 <td>
                   <div class="row-actions">
-                    <a class="btn ghost" href="index.php?action=edit&id=<?php echo (int) $item['id']; ?>">Edit</a>
+                    <button
+                      class="btn ghost js-edit"
+                      type="button"
+                      data-id="<?php echo (int) $item['id']; ?>"
+                      data-name="<?php echo e($item['name']); ?>"
+                      data-category="<?php echo e((string) ($item['category'] ?? '')); ?>"
+                      data-quantity="<?php echo $item['quantity'] !== null ? e((string) (int) $item['quantity']) : ''; ?>"
+                      data-price="<?php echo $item['price'] !== null ? e(number_format((float) $item['price'], 2, '.', '')) : ''; ?>"
+                    >Edit</button>
                     <form method="post" onsubmit="return confirm('Delete this item?');">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="id" value="<?php echo (int) $item['id']; ?>">
-                      <button class="btn primary" type="submit">Delete</button>
+                      <button class="btn danger" type="submit">Delete</button>
                     </form>
                   </div>
                 </td>
@@ -325,6 +341,57 @@ $formPrice = $editItem['price'] ?? ($_POST['price'] ?? '');
         </table>
       <?php endif; ?>
     </section>
+
+    <?php
+      $modalAttributes = '';
+      if ($pendingEdit) {
+          $modalAttributes = sprintf(
+              ' data-pending="1" data-id="%s" data-name="%s" data-category="%s" data-quantity="%s" data-price="%s"',
+              e($pendingEdit['id']),
+              e($pendingEdit['name']),
+              e($pendingEdit['category']),
+              e($pendingEdit['quantity']),
+              e($pendingEdit['price'])
+          );
+      }
+    ?>
+    <div class="modal" id="edit-modal" aria-hidden="true"<?php echo $modalAttributes; ?>>
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+        <div class="modal-header">
+          <div>
+            <p class="modal-eyebrow">Quick update</p>
+            <h3 id="edit-title">Edit item</h3>
+            <p class="modal-subtitle" id="edit-meta">Adjust the fields and save changes.</p>
+          </div>
+          <button class="icon-btn" type="button" data-modal-close aria-label="Close">×</button>
+        </div>
+        <form class="form-grid modal-form" method="post">
+          <input type="hidden" name="action" value="update">
+          <input type="hidden" name="id" id="edit-id" value="">
+          <label>
+            <span>Item name</span>
+            <input name="name" id="edit-name" required placeholder="e.g. Studio lamp">
+          </label>
+          <label>
+            <span>Category</span>
+            <input name="category" id="edit-category" placeholder="e.g. Lighting">
+          </label>
+          <label>
+            <span>Quantity</span>
+            <input name="quantity" id="edit-quantity" type="number" min="0" placeholder="0">
+          </label>
+          <label>
+            <span>Price</span>
+            <input name="price" id="edit-price" type="number" min="0" step="0.01" placeholder="0.00">
+          </label>
+          <div class="form-actions">
+            <button class="primary" type="submit">Save changes</button>
+            <button class="ghost" type="button" data-modal-close>Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </main>
 </body>
 </html>
