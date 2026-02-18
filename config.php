@@ -29,8 +29,23 @@ if (is_readable($envFile)) {
 }
 
 $env = static function (string $key, ?string $default = null): ?string {
+    if (array_key_exists($key, $_ENV)) {
+        $value = $_ENV[$key];
+        if ($value !== null && $value !== '') {
+            return (string) $value;
+        }
+    }
+    if (array_key_exists($key, $_SERVER)) {
+        $value = $_SERVER[$key];
+        if ($value !== null && $value !== '') {
+            return (string) $value;
+        }
+    }
     $value = getenv($key);
-    return $value === false ? $default : $value;
+    if ($value === false || $value === '') {
+        return $default;
+    }
+    return $value;
 };
 
 $dbUrl = $env('DATABASE_URL') ?? $env('MYSQL_URL');
@@ -39,27 +54,31 @@ if ($dbUrl) {
     $parsed = parse_url($dbUrl) ?: [];
 }
 
-$host = $env('DB_HOST')
-    ?? $env('MYSQLHOST')
+$host = $env('MYSQLHOST')
+    ?? $env('DB_HOST')
     ?? ($parsed['host'] ?? '127.0.0.1');
 
-$port = $env('DB_PORT')
-    ?? $env('MYSQLPORT')
+$port = $env('MYSQLPORT')
+    ?? $env('DB_PORT')
     ?? ($parsed['port'] ?? null);
 
-$name = $env('DB_NAME')
-    ?? $env('MYSQLDATABASE')
+$name = $env('MYSQLDATABASE')
+    ?? $env('DB_NAME')
     ?? (isset($parsed['path']) ? ltrim((string) $parsed['path'], '/') : 'crud_app');
 
-$user = $env('DB_USER')
-    ?? $env('MYSQLUSER')
+$user = $env('MYSQLUSER')
+    ?? $env('DB_USER')
     ?? ($parsed['user'] ?? 'root');
 
-$pass = $env('DB_PASS')
-    ?? $env('MYSQLPASSWORD')
+$pass = $env('MYSQLPASSWORD')
+    ?? $env('DB_PASS')
     ?? ($parsed['pass'] ?? '');
 
 $charset = $env('DB_CHARSET') ?? 'utf8mb4';
+
+if ($host === 'localhost') {
+    $host = '127.0.0.1';
+}
 
 return [
     'db' => [
