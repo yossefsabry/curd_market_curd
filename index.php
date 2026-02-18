@@ -1,12 +1,71 @@
 <?php
 declare(strict_types=1);
 
-$pdo = require __DIR__ . '/db.php';
-
 function e(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
+
+$pdo = null;
+$dbError = null;
+
+try {
+    $pdo = require __DIR__ . '/db.php';
+} catch (Throwable $e) {
+    $dbError = $e->getMessage();
+}
+
+if ($dbError) {
+    $driverHint = '';
+    if (stripos($dbError, 'driver') !== false) {
+        $driverHint = 'Missing PDO MySQL driver.';
+    }
+    ?>
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Inventory CRUD - Setup Required</title>
+      <link rel="stylesheet" href="assets/styles.css">
+    </head>
+    <body>
+      <main>
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">Inventory Studio</p>
+            <h1>Database setup needed</h1>
+            <p class="subtitle">Finish the database configuration to start using the CRUD app.</p>
+          </div>
+        </header>
+        <section class="card">
+          <div class="error">
+            <?php echo e(trim($driverHint . ' ' . $dbError)); ?>
+          </div>
+          <p><strong>Linux (MariaDB):</strong> install the PDO MySQL extension and restart PHP/Apache.</p>
+          <p>Example: <code>sudo apt install php-mysql</code> (or <code>php8.5-mysql</code>), then restart your web server.</p>
+          <p><strong>Windows (XAMPP):</strong> open <code>xampp/php/php.ini</code> and enable:</p>
+          <p><code>extension=pdo_mysql</code> and <code>extension=mysqli</code>, then restart Apache.</p>
+          <p>Also confirm credentials in <code>config.php</code> and import <code>schema.sql</code>.</p>
+        </section>
+      </main>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
+$pdo->exec(
+    'CREATE TABLE IF NOT EXISTS items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(150) NOT NULL,
+        category VARCHAR(80) DEFAULT NULL,
+        quantity INT DEFAULT NULL,
+        price DECIMAL(10,2) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )'
+);
 
 $errors = [];
 $notice = null;

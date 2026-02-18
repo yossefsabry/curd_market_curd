@@ -1,12 +1,17 @@
 <?php
 declare(strict_types=1);
 
+if (!extension_loaded('pdo_mysql')) {
+    throw new RuntimeException('PDO MySQL driver is not installed.');
+}
+
 $config = require __DIR__ . '/config.php';
 
 $db = $config['db'];
 $dsn = sprintf(
-    'mysql:host=%s;dbname=%s;charset=%s',
+    'mysql:host=%s;%sdbname=%s;charset=%s',
     $db['host'],
+    !empty($db['port']) ? 'port=' . $db['port'] . ';' : '',
     $db['name'],
     $db['charset']
 );
